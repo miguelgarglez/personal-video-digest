@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/miguelgarglez/video-digest/compare/v1.1.0...v1.2.0) (2026-08-29)
+
+
+### Features
+
+* support Linux x64 alongside macOS Apple Silicon ([#13](https://github.com/miguelgarglez/video-digest/issues/13)) ([c2b043e](https://github.com/miguelgarglez/video-digest/commit/c2b043e490d48974f053bb35b00c7709c089c538))
+
 ## [1.1.0](https://github.com/miguelgarglez/video-digest/compare/v1.0.0...v1.1.0) (2026-07-02)
 
 
