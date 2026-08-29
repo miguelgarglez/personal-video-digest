@@ -354,18 +354,31 @@ async function readExactShimInvocation(
 }
 
 async function validateDoctorShimInvocations(markers: ShimInvocationMarkers): Promise<void> {
-  await readExactShimInvocation(markers.security, {
-    argv: [
-      "find-generic-password",
-      "-a",
-      "provider:opencode:api-key",
-      "-s",
-      "video-digest",
-      "-w",
-    ],
-    command: "security",
-  });
+  if (process.platform === "darwin") {
+    await readExactShimInvocation(markers.security, {
+      argv: [
+        "find-generic-password",
+        "-a",
+        "provider:opencode:api-key",
+        "-s",
+        "video-digest",
+        "-w",
+      ],
+      command: "security",
+    });
+  } else {
+    await readAbsentShimInvocation(markers.security, "security");
+  }
   await readExactShimInvocation(markers.uv, { argv: ["--version"], command: "uv" });
+}
+
+async function readAbsentShimInvocation(marker: string, command: string): Promise<void> {
+  try {
+    await readFile(marker, "utf8");
+  } catch {
+    return;
+  }
+  throw new Error(`doctor invoked the isolated ${command} shim unexpectedly`);
 }
 
 function createSmokeEnvironment(root: string, shimDirectory: string): Record<string, string> {

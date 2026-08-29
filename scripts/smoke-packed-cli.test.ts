@@ -160,20 +160,22 @@ async function materializeFakeInstall(invocation: CommandInvocation): Promise<vo
 
 async function materializeFakeDoctorShimMarkers(invocation: CommandInvocation): Promise<void> {
   const root = dirname(invocation.cwd);
-  await writeFile(
-    join(root, "security-invocations.jsonl"),
-    `${JSON.stringify({
-      argv: [
-        "find-generic-password",
-        "-a",
-        "provider:opencode:api-key",
-        "-s",
-        "video-digest",
-        "-w",
-      ],
-      command: "security",
-    })}\n`,
-  );
+  if (process.platform === "darwin") {
+    await writeFile(
+      join(root, "security-invocations.jsonl"),
+      `${JSON.stringify({
+        argv: [
+          "find-generic-password",
+          "-a",
+          "provider:opencode:api-key",
+          "-s",
+          "video-digest",
+          "-w",
+        ],
+        command: "security",
+      })}\n`,
+    );
+  }
   await writeFile(
     join(root, "uv-invocations.jsonl"),
     `${JSON.stringify({ argv: ["--version"], command: "uv" })}\n`,
@@ -534,7 +536,11 @@ describe("isolated packed CLI smoke", () => {
           },
           tempRoot,
         }),
-      ).rejects.toThrow("doctor did not invoke the isolated security shim");
+      ).rejects.toThrow(
+        process.platform === "darwin"
+          ? "doctor did not invoke the isolated security shim"
+          : "doctor did not invoke the isolated uv shim",
+      );
     } finally {
       await rm(tempRoot, { force: true, recursive: true });
       await rm(packRoot, { force: true, recursive: true });
