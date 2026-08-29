@@ -9,11 +9,12 @@ import {
 const context: SupportContext = {
   appVersion: "1.0.0 beta",
   architecture: "arm64/test",
-  macOSVersion: "26.5.1",
+  osName: "macOS",
+  osVersion: "26.5.1",
 };
 
 describe("buildFeedbackLinks", () => {
-  test("encodes reviewable email and GitHub drafts from allowlisted context", () => {
+  test("encodes reviewable email and GitHub drafts from allowlisted context", async () => {
     const links = buildFeedbackLinks(context, "failed-workflow");
     const email = new URL(links.email);
     const issue = new URL(links.githubIssue);
@@ -23,6 +24,7 @@ describe("buildFeedbackLinks", () => {
     expect(email.searchParams.get("subject")).toBe("Video Digest feedback");
     expect(email.searchParams.get("body")).toContain("Video Digest: 1.0.0 beta");
     expect(email.searchParams.get("body")).toContain("Opened from: Failed workflow");
+    expect(email.searchParams.get("body")).toContain("OS: macOS 26.5.1");
     expect(issue.origin).toBe("https://github.com");
     expect(issue.pathname).toBe("/miguelgarglez/video-digest/issues/new");
     expect(issue.searchParams.get("title")).toBe("[Bug] ");
@@ -53,6 +55,7 @@ describe("resolveSupportContext", () => {
     const result = await resolveSupportContext({
       appVersion: "1.0.0",
       architecture: "arm64",
+      platform: "darwin",
       run: async (command) => {
         commands.push([...command]);
         return { exitCode: 0, stderr: "", stdout: "26.5.1\n" };
@@ -60,7 +63,28 @@ describe("resolveSupportContext", () => {
     });
 
     expect(commands).toEqual([["/usr/bin/sw_vers", "-productVersion"]]);
-    expect(result).toEqual({ appVersion: "1.0.0", architecture: "arm64", macOSVersion: "26.5.1" });
+    expect(result).toEqual({
+      appVersion: "1.0.0",
+      architecture: "arm64",
+      osName: "macOS",
+      osVersion: "26.5.1",
+    });
+  });
+
+  test("reads a Linux distribution name from os-release", async () => {
+    const result = await resolveSupportContext({
+      appVersion: "1.0.0",
+      architecture: "x64",
+      platform: "linux",
+      readText: async () => 'NAME="Ubuntu"\nPRETTY_NAME="Ubuntu 24.04.2 LTS"\n',
+    });
+
+    expect(result).toEqual({
+      appVersion: "1.0.0",
+      architecture: "x64",
+      osName: "Linux",
+      osVersion: "Ubuntu 24.04.2 LTS",
+    });
   });
 
   test("falls back to unknown for failed or malformed product-version lookups", async () => {
@@ -71,8 +95,17 @@ describe("resolveSupportContext", () => {
     ];
 
     for (const run of runners) {
-      await expect(resolveSupportContext({ appVersion: "1.0.0", architecture: "arm64", run }))
-        .resolves.toEqual({ appVersion: "1.0.0", architecture: "arm64", macOSVersion: "unknown" });
+      await expect(resolveSupportContext({
+        appVersion: "1.0.0",
+        architecture: "arm64",
+        platform: "darwin",
+        run,
+      })).resolves.toEqual({
+        appVersion: "1.0.0",
+        architecture: "arm64",
+        osName: "macOS",
+        osVersion: "unknown",
+      });
     }
   });
 });

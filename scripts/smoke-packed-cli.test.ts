@@ -95,8 +95,8 @@ const expectedHelp = [
   "",
   "Options:",
   "  --email-preview  Also write a Markdown email preview under <Artifact Library>/emails/.",
-  "  --copy           Copy clean transcript text after writing artifacts.",
-  "  --open           Open the transcript Markdown after writing artifacts.",
+  "  --copy           Copy clean transcript text after writing artifacts (macOS clipboard; Linux wl-copy or xclip).",
+  "  --open           Open the transcript Markdown after writing artifacts (macOS open; Linux xdg-open).",
   "  --stdout         Emit only clean transcript text to stdout.",
   "  --json           Write one machine-readable JSON object.",
   "  --yes            Confirm setup without an interactive prompt.",
@@ -118,6 +118,7 @@ const expectedHelp = [
   "",
   "Configuration:",
   "  video-digest config set api-key --provider <provider> stores an isolated key in macOS Keychain.",
+  "  On Linux, set the provider environment variable instead. Secrets are never written to files.",
   "",
 ].join("\n");
 
@@ -159,20 +160,22 @@ async function materializeFakeInstall(invocation: CommandInvocation): Promise<vo
 
 async function materializeFakeDoctorShimMarkers(invocation: CommandInvocation): Promise<void> {
   const root = dirname(invocation.cwd);
-  await writeFile(
-    join(root, "security-invocations.jsonl"),
-    `${JSON.stringify({
-      argv: [
-        "find-generic-password",
-        "-a",
-        "provider:opencode:api-key",
-        "-s",
-        "video-digest",
-        "-w",
-      ],
-      command: "security",
-    })}\n`,
-  );
+  if (process.platform === "darwin") {
+    await writeFile(
+      join(root, "security-invocations.jsonl"),
+      `${JSON.stringify({
+        argv: [
+          "find-generic-password",
+          "-a",
+          "provider:opencode:api-key",
+          "-s",
+          "video-digest",
+          "-w",
+        ],
+        command: "security",
+      })}\n`,
+    );
+  }
   await writeFile(
     join(root, "uv-invocations.jsonl"),
     `${JSON.stringify({ argv: ["--version"], command: "uv" })}\n`,
@@ -533,7 +536,11 @@ describe("isolated packed CLI smoke", () => {
           },
           tempRoot,
         }),
-      ).rejects.toThrow("doctor did not invoke the isolated security shim");
+      ).rejects.toThrow(
+        process.platform === "darwin"
+          ? "doctor did not invoke the isolated security shim"
+          : "doctor did not invoke the isolated uv shim",
+      );
     } finally {
       await rm(tempRoot, { force: true, recursive: true });
       await rm(packRoot, { force: true, recursive: true });

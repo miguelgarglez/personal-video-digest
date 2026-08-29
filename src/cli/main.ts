@@ -9,7 +9,9 @@ import {
   type LibraryFileOperations,
 } from "./artifacts";
 import {
-  MacOSKeychainCredentialStore,
+  createCredentialStore,
+  persistsCredentials,
+  persistedCredentialLabel,
   resolveProviderApiKey,
   type CredentialStore,
 } from "./credentials";
@@ -43,7 +45,7 @@ import { inspectRuntime, prepareRuntime, resolveUvExecutable, RuntimeSetupError,
 import { withRecoveredOutputLibrary } from "../output/output-writer";
 import type { VideoMetadataSource } from "../video/video-metadata-source";
 import { YouTubeOEmbedMetadataSource } from "../video/youtube-oembed-metadata-source";
-import { createMacOSSystemActions, SystemActionError, type SystemActions } from "./system-actions";
+import { createSystemActions, SystemActionError, type SystemActions } from "./system-actions";
 import {
   PUBLIC_CLI_ERROR_CODE,
   PUBLIC_CLI_SCHEMA,
@@ -145,7 +147,7 @@ export async function runCli(
     }
 
     const env = dependencies.env ?? process.env;
-    const appPaths = dependencies.appPaths ?? resolveAppPaths(dependencies.homeDir ?? homedir());
+    const appPaths = dependencies.appPaths ?? resolveAppPaths(dependencies.homeDir ?? homedir(), { env });
     const runtimeManager = dependencies.runtimeManager ?? createRuntimeManager(appPaths, env);
 
     if (result.value.command === "setup") {
@@ -160,7 +162,8 @@ export async function runCli(
       envOutputDir: env.VIDEO_DIGEST_OUTPUT_DIR,
       savedArtifactLibrary: config?.artifactLibrary,
     });
-    const credentialStore = dependencies.credentialStore ?? new MacOSKeychainCredentialStore();
+    const credentialStore = dependencies.credentialStore ?? createCredentialStore();
+    const systemActions = dependencies.systemActions ?? createSystemActions();
 
     if (result.value.command === "config") {
       return await runConfigCommand(result.value, io, credentialStore, configStore, env, artifactLibrary, config);
@@ -205,7 +208,7 @@ export async function runCli(
           );
           if (resolved.ok && !json) {
             await revalidateLibraryOpenTarget(resolved.openTarget, dependencies.libraryFileOperations);
-            await (dependencies.openPath ?? openWithSystem)(resolved.openPath);
+            await (dependencies.openPath ?? systemActions.open)(resolved.openPath);
           }
           return resolved;
         },
@@ -261,7 +264,7 @@ export async function runCli(
           })),
         presentation: { copy, open, stdout: stdoutMode },
         spinnerIntervalMs: dependencies.spinnerIntervalMs,
-        systemActions: dependencies.systemActions ?? createMacOSSystemActions(),
+        systemActions,
         video,
       });
     }
@@ -456,8 +459,8 @@ const HELP_TEXT = [
   "",
   "Options:",
   "  --email-preview  Also write a Markdown email preview under <Artifact Library>/emails/.",
-  "  --copy           Copy clean transcript text after writing artifacts.",
-  "  --open           Open the transcript Markdown after writing artifacts.",
+  "  --copy           Copy clean transcript text after writing artifacts (macOS clipboard; Linux wl-copy or xclip).",
+  "  --open           Open the transcript Markdown after writing artifacts (macOS open; Linux xdg-open).",
   "  --stdout         Emit only clean transcript text to stdout.",
   "  --json           Write one machine-readable JSON object.",
   "  --yes            Confirm setup without an interactive prompt.",
@@ -479,6 +482,7 @@ const HELP_TEXT = [
   "",
   "Configuration:",
   "  video-digest config set api-key --provider <provider> stores an isolated key in macOS Keychain.",
+  "  On Linux, set the provider environment variable instead. Secrets are never written to files.",
 ].join("\n");
 
 const TRANSCRIPT_HELP_TEXT = [
@@ -488,7 +492,7 @@ const TRANSCRIPT_HELP_TEXT = [
   "  video-digest transcript <youtube-url> [options]",
   "",
   "Options:",
-  "  --copy               Copy clean text to the macOS clipboard.",
+  "  --copy               Copy clean text to the clipboard when a clipboard command is available.",
   "  --open               Open the human-readable Markdown transcript.",
   "  --stdout             Emit only clean text for shell pipelines.",
   "  --json               Emit one versioned JSON result (incompatible with --stdout).",
@@ -641,6 +645,13 @@ async function runConfigCommand(
       return 1;
     }
 
+    if (!persistsCredentials(credentialStore)) {
+      io.error(
+        `This platform does not persist API keys. Set ${profile.credentialEnv} instead. Video Digest never writes secrets to files.`,
+      );
+      return 1;
+    }
+
     if (!io.prompt) {
       io.error("config set api-key requires an interactive terminal.");
       return 1;
@@ -653,7 +664,7 @@ async function runConfigCommand(
     }
 
     await credentialStore.setApiKey(provider, apiKey);
-    io.log(`${profile.displayName} API key stored in macOS Keychain.`);
+    io.log(`${profile.displayName} API key stored in ${persistedCredentialLabel(credentialStore)}.`);
     return 0;
   }
 
@@ -678,7 +689,11 @@ async function runConfigCommand(
       status: "deleted",
     }));
   } else {
-    io.log(`${getProviderProfile(provider).displayName} API key removed from macOS Keychain.`);
+    io.log(
+      persistsCredentials(credentialStore)
+        ? `${getProviderProfile(provider).displayName} API key removed from ${persistedCredentialLabel(credentialStore)}.`
+        : `No persistent ${getProviderProfile(provider).displayName} API key is stored on this platform.`,
+    );
   }
   return 0;
 }
@@ -824,10 +839,14 @@ async function promptForProviderApiKey(
       return { mode: "cancelled" };
     }
 
-    const shouldSave = !isNegative(await io.prompt!("Save this key in macOS Keychain for future runs? [Y/n]: "));
-    if (shouldSave) {
-      await credentialStore.setApiKey(provider, apiKey);
-      io.log(`${profile.displayName} API key stored in macOS Keychain.`);
+    if (persistsCredentials(credentialStore)) {
+      const shouldSave = !isNegative(await io.prompt!(`Save this key in ${persistedCredentialLabel(credentialStore)} for future runs? [Y/n]: `));
+      if (shouldSave) {
+        await credentialStore.setApiKey(provider, apiKey);
+        io.log(`${profile.displayName} API key stored in ${persistedCredentialLabel(credentialStore)}.`);
+      }
+    } else {
+      io.log(`This session will use the pasted key. For later runs, set ${profile.credentialEnv}. Video Digest never writes secrets to files.`);
     }
 
     return {
@@ -1044,16 +1063,4 @@ async function requireReadyRuntime(
     io.error(message);
   }
   return 1;
-}
-
-async function openWithSystem(path: string): Promise<void> {
-  const process = Bun.spawn(["open", path], {
-    stderr: "pipe",
-    stdout: "pipe",
-  });
-  const exitCode = await process.exited;
-
-  if (exitCode !== 0) {
-    throw new Error(`Could not open digest: ${path}`);
-  }
 }

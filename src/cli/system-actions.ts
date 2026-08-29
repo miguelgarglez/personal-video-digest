@@ -1,4 +1,6 @@
+import { dirname } from "node:path";
 import type { PublicCliErrorCode } from "./public-contract";
+import { isDarwin } from "./platform";
 
 export type SpawnResult = {
   exitCode: number;
@@ -28,11 +30,33 @@ export class SystemActionError extends Error {
   }
 }
 
+const COPY_UNAVAILABLE = "Clipboard is unavailable. Install wl-clipboard or xclip, or copy the text from the reported Transcript file.";
+const OPEN_UNAVAILABLE = "Could not open the transcript. Open the Markdown file from its reported path.";
+const REVEAL_UNAVAILABLE = "Could not reveal the file. Open its reported parent folder manually.";
+const FEEDBACK_OPEN_UNAVAILABLE = "Could not open the feedback destination. Copy the link instead.";
+
 export async function copyText(text: string, spawn: SpawnCommand = spawnCommand): Promise<void> {
   await execute(["pbcopy"], { stdin: text }, spawn, new SystemActionError(
     "copy-failed",
     "Could not copy the text. Copy it manually and try again.",
   ));
+}
+
+export async function copyTextLinux(text: string, spawn: SpawnCommand = spawnCommand): Promise<void> {
+  const failure = new SystemActionError("copy-failed", COPY_UNAVAILABLE);
+  const candidates: readonly (readonly string[])[] = [
+    ["wl-copy"],
+    ["xclip", "-selection", "clipboard"],
+  ];
+  for (const command of candidates) {
+    try {
+      const result = await spawn(command, { stdin: text });
+      if (result.exitCode === 0) return;
+    } catch {
+      // Try the next clipboard command. Absence is not a crash.
+    }
+  }
+  throw failure;
 }
 
 export async function openExternalUrl(url: string, spawn: SpawnCommand = spawnCommand): Promise<void> {
@@ -65,6 +89,36 @@ export function createMacOSSystemActions(spawn: SpawnCommand = spawnCommand): Sy
     open: (path) => openPath(path, spawn),
     reveal: (path) => revealPath(path, spawn),
   };
+}
+
+export async function openExternalUrlLinux(url: string, spawn: SpawnCommand = spawnCommand): Promise<void> {
+  const failure = new SystemActionError("open-failed", FEEDBACK_OPEN_UNAVAILABLE);
+  if (!isApprovedFeedbackUrl(url)) throw failure;
+  await execute(["xdg-open", url], {}, spawn, failure);
+}
+
+export async function openPathLinux(path: string, spawn: SpawnCommand = spawnCommand): Promise<void> {
+  await execute(["xdg-open", path], {}, spawn, new SystemActionError("open-failed", OPEN_UNAVAILABLE));
+}
+
+export async function revealPathLinux(path: string, spawn: SpawnCommand = spawnCommand): Promise<void> {
+  await execute(["xdg-open", dirname(path)], {}, spawn, new SystemActionError("reveal-failed", REVEAL_UNAVAILABLE));
+}
+
+export function createLinuxSystemActions(spawn: SpawnCommand = spawnCommand): SystemActions {
+  return {
+    copy: (text) => copyTextLinux(text, spawn),
+    openExternal: (url) => openExternalUrlLinux(url, spawn),
+    open: (path) => openPathLinux(path, spawn),
+    reveal: (path) => revealPathLinux(path, spawn),
+  };
+}
+
+export function createSystemActions(
+  platform: NodeJS.Platform = process.platform,
+  spawn: SpawnCommand = spawnCommand,
+): SystemActions {
+  return isDarwin(platform) ? createMacOSSystemActions(spawn) : createLinuxSystemActions(spawn);
 }
 
 function isApprovedFeedbackUrl(value: string): boolean {

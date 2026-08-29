@@ -96,6 +96,7 @@ const validPackedFiles = [
   "package/src/cli/main.ts",
   "package/src/cli/package-resources.ts",
   "package/src/cli/parse-args.ts",
+  "package/src/cli/platform.ts",
   "package/src/cli/progress-renderer.ts",
   "package/src/cli/public-contract.ts",
   "package/src/cli/runtime-manager.ts",

@@ -1,9 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
   copyText,
+  copyTextLinux,
+  createSystemActions,
   openExternalUrl,
+  openExternalUrlLinux,
   openPath,
+  openPathLinux,
   revealPath,
+  revealPathLinux,
   spawnCommand,
   SystemActionError,
   type SpawnCommand,
@@ -121,5 +126,68 @@ describe("macOS system actions", () => {
     await expect(openPath("/tmp/a.md", spawn)).rejects.toEqual(
       new SystemActionError("open-failed", "Could not open the transcript. Open the Markdown file from its reported path."),
     );
+  });
+});
+
+describe("Linux system actions", () => {
+  test("copies through wl-copy when it succeeds", async () => {
+    const fake = recordingSpawn();
+    await copyTextLinux("hello\n", fake.spawn);
+    expect(fake.calls).toEqual([{ command: ["wl-copy"], stdin: "hello\n" }]);
+  });
+
+  test("falls back to xclip when wl-copy is missing", async () => {
+    const calls: Array<{ command: string[]; stdin?: string }> = [];
+    const spawn: SpawnCommand = async (command, options = {}) => {
+      calls.push({ command: [...command], stdin: options.stdin });
+      if (command[0] === "wl-copy") throw new Error("ENOENT");
+      return { exitCode: 0, stderr: "", stdout: "" };
+    };
+
+    await copyTextLinux("hello\n", spawn);
+    expect(calls).toEqual([
+      { command: ["wl-copy"], stdin: "hello\n" },
+      { command: ["xclip", "-selection", "clipboard"], stdin: "hello\n" },
+    ]);
+  });
+
+  test("reports a stable clipboard error when no Linux clipboard command works", async () => {
+    const spawn: SpawnCommand = async () => {
+      throw new Error("secret command detail");
+    };
+    await expect(copyTextLinux("secret", spawn)).rejects.toEqual(
+      new SystemActionError(
+        "copy-failed",
+        "Clipboard is unavailable. Install wl-clipboard or xclip, or copy the text from the reported Transcript file.",
+      ),
+    );
+  });
+
+  test("opens and reveals paths with xdg-open without invoking a shell", async () => {
+    const fake = recordingSpawn();
+    await openPathLinux("/tmp/a file.md", fake.spawn);
+    await revealPathLinux("/tmp/a file.md", fake.spawn);
+    expect(fake.calls).toEqual([
+      { command: ["xdg-open", "/tmp/a file.md"], stdin: undefined },
+      { command: ["xdg-open", "/tmp"], stdin: undefined },
+    ]);
+  });
+
+  test("opens only approved feedback URL shapes through xdg-open", async () => {
+    const commands: string[][] = [];
+    const spawn: SpawnCommand = async (command) => {
+      commands.push([...command]);
+      return { exitCode: 0, stderr: "", stdout: "" };
+    };
+
+    await openExternalUrlLinux("mailto:miguel.garglez@gmail.com?subject=Video%20Digest", spawn);
+    expect(commands).toEqual([
+      ["xdg-open", "mailto:miguel.garglez@gmail.com?subject=Video%20Digest"],
+    ]);
+  });
+
+  test("selects Linux actions off darwin", () => {
+    const spawn: SpawnCommand = async () => ({ exitCode: 0, stderr: "", stdout: "" });
+    expect(createSystemActions("linux", spawn)).not.toEqual(createSystemActions("darwin", spawn));
   });
 });

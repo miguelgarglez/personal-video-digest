@@ -38,11 +38,11 @@ Digest does not keep processing history.
 ## Status and support
 
 Video Digest is public, English-only software licensed under
-MIT. The supported platform is macOS on Apple Silicon. macOS Intel, Linux, and Windows
-are not supported in this release.
+MIT. The supported platforms are macOS on Apple Silicon and Linux x64. macOS Intel
+and Windows are not supported in this release.
 
 Repository CI verifies the tests, types, exact tarball contents, and an isolated
-installation of the packed CLI on the supported Apple Silicon platform. Release
+installation of the packed CLI on macOS Apple Silicon and Linux x64. Release
 Please owns package-version changes and release notes.
 
 Machine-facing changes are versioned and documented in the
@@ -57,8 +57,8 @@ Video Digest manages its own Python 3.12 runtime. It does not modify system Pyth
 
 ## Install
 
-> **Supported platform:** macOS on Apple Silicon only. The current package does not
-> support macOS Intel, Windows, or Linux.
+> **Supported platforms:** macOS on Apple Silicon and Linux x64. The current package
+> does not support macOS Intel or Windows.
 
 Install the published package globally:
 
@@ -138,7 +138,8 @@ video-digest config set provider opencode
 video-digest config set api-key --provider opencode
 ```
 
-The key is isolated by provider in macOS Keychain under the `video-digest` service. It is not written
+On macOS the key is isolated by provider in Keychain under the `video-digest` service.
+On Linux, set the provider environment variable instead. The key is never written
 to the application configuration or printed by the CLI. You can then create a first
 Digest:
 
@@ -192,8 +193,10 @@ video-digest transcript '<youtube-url>' --stdout  # print only clean text to std
 ```
 
 `--stdout` disables progress output so it is safe in a pipeline. It cannot be combined
-with `--json`. The `--copy` and `--open` actions are macOS-specific and never run in
-JSON mode.
+with `--json`. The `--copy` and `--open` actions use the desktop clipboard and opener
+(`pbcopy`/`open` on macOS; `wl-copy` or `xclip`, and `xdg-open`, on Linux). They never
+run in JSON mode. If a desktop command is missing, the CLI reports a stable error
+instead of crashing; agent `--json` workflows are unaffected.
 
 `ingest`, `transcript`, `list`, and `open` also accept
 `--output-dir '/absolute/path'` for a one-command Artifact Library override.
@@ -216,11 +219,16 @@ Application state is kept separate from user content:
 
 ```text
 Artifacts       ~/Documents/Video Digest (or your selected folder)
-Configuration   ~/Library/Application Support/video-digest/config.json
-Python runtime  ~/Library/Application Support/video-digest/runtime/python
+Configuration   macOS: ~/Library/Application Support/video-digest/config.json
+                Linux: $XDG_CONFIG_HOME/video-digest/config.json
+Python runtime  macOS: ~/Library/Application Support/video-digest/runtime/python
+                Linux: $XDG_DATA_HOME/video-digest/runtime/python
 Dependencies    uv's standard cache
-Credential      macOS Keychain, service video-digest
+Credential      macOS Keychain (service video-digest), or the provider environment variable
 ```
+
+On Linux, `XDG_CONFIG_HOME` defaults to `~/.config` and `XDG_DATA_HOME` defaults to
+`~/.local/share` when unset.
 
 Pre-release files under this repository's former `./outputs` folder are not migrated
 automatically.
@@ -276,7 +284,8 @@ access happens only for an operation you request:
 
 Public metadata lookup is best-effort and needs no YouTube API key. A failed lookup
 does not block processing. Provider credentials resolve from their standard environment
-variable when explicitly set, then from an isolated macOS Keychain entry. Credential values are
+variable when explicitly set, then from an isolated macOS Keychain entry on macOS.
+Linux uses only the environment variable. Credential values are
 intentionally excluded from configuration files and the documented JSON contracts;
 `config get` reports only whether and where a credential is configured. Provider HTTP
 failures are classified without reflecting the remote response body.
@@ -322,12 +331,12 @@ Machine error payloads and numeric meanings are documented in the
 
 ## Future possibilities
 
-A web interface and support for Windows and Linux are possible future directions.
+A web interface and Windows support are possible future directions.
 They are not part of the current compatibility contract or a committed roadmap.
 
 ## Development
 
-Clone the repository on a supported Mac, then install JavaScript dependencies:
+Clone the repository on a supported machine, then install JavaScript dependencies:
 
 ```sh
 bun install

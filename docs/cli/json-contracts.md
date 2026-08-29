@@ -168,7 +168,8 @@ preference or `null`; `effective` reflects environment/config/default precedence
 `--output-dir` is not accepted by `config`; it is a one-command override only for
 `ingest`, `transcript`, `list`, and `open`.
 `credential.source` is one of `env`, `keychain`, or `missing`; credential values
-are never returned.
+are never returned. `keychain` is the macOS Keychain-backed store. Linux does not
+persist secrets, so only `env` or `missing` appear there.
 
 <!-- contract:config-get-success -->
 ```json

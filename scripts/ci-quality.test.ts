@@ -14,12 +14,18 @@ function indexOfRequired(source: string, value: string): number {
 }
 
 describe("CLI quality workflow", () => {
-  test("runs the release-readiness gates in order on the supported runner", async () => {
+  test("runs the release-readiness gates on macOS Apple Silicon and Linux x64", async () => {
     const workflow = await readWorkflow();
 
-    expect(workflow).toContain("runs-on: macos-14 # Apple Silicon (M1 arm64)");
+    expect(workflow).toContain("os: macos-14");
+    expect(workflow).toContain("arch: arm64");
+    expect(workflow).toContain("name: Apple Silicon");
+    expect(workflow).toContain("os: ubuntu-24.04");
+    expect(workflow).toContain("arch: x86_64");
+    expect(workflow).toContain("name: Linux x64");
+    expect(workflow).toContain("runs-on: ${{ matrix.os }}");
     expect(workflow).toContain("timeout-minutes:");
-    expect(workflow).toContain("run: test \"$(uname -m)\" = \"arm64\"");
+    expect(workflow).toContain('run: test "$(uname -m)" = "${{ matrix.arch }}"');
     expect(workflow).toContain("bun-version: 1.3.14");
 
     const gates = [

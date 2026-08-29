@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+  createCredentialStore,
+  EnvironmentOnlyCredentialStore,
   MacOSKeychainCredentialStore,
+  persistsCredentials,
   resolveProviderApiKey,
   type CredentialStore,
 } from "./credentials";
@@ -103,6 +106,27 @@ describe("MacOSKeychainCredentialStore", () => {
       .rejects.toThrow("Could not store provider API key in Keychain");
     await expect(store.setApiKey("openai", "test-key"))
       .rejects.not.toThrow("test-key");
+  });
+});
+
+describe("EnvironmentOnlyCredentialStore", () => {
+  test("never returns a stored secret and refuses to persist one", async () => {
+    const store = new EnvironmentOnlyCredentialStore();
+
+    await expect(store.getApiKey("opencode")).resolves.toBeNull();
+    await expect(store.setApiKey("opencode", "test-key")).rejects.toThrow("OPENCODE_API_KEY");
+    await expect(store.setApiKey("opencode", "test-key")).rejects.not.toThrow("test-key");
+    await expect(store.deleteApiKey("opencode")).resolves.toBeUndefined();
+  });
+});
+
+describe("createCredentialStore", () => {
+  test("uses Keychain on macOS and environment-only persistence on Linux", () => {
+    expect(createCredentialStore("darwin")).toBeInstanceOf(MacOSKeychainCredentialStore);
+    const linux = createCredentialStore("linux");
+    expect(linux).toBeInstanceOf(EnvironmentOnlyCredentialStore);
+    expect(persistsCredentials(linux)).toBe(false);
+    expect(persistsCredentials(new MacOSKeychainCredentialStore())).toBe(true);
   });
 });
 

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 import { runCli as runCliProduction, type CliDependencies, type CliIO } from "./main";
 import type { AppConfig } from "./config-store";
-import type { CredentialStore } from "./credentials";
+import { EnvironmentOnlyCredentialStore, type CredentialStore } from "./credentials";
 import type { IngestVideoResult } from "../ingestion/ingest-video";
 import type { FetchTranscriptOnlyResult } from "../ingestion/transcript-only";
 import { SummarizerError } from "../summarizer/summarizer";
@@ -993,6 +993,30 @@ describe("runCli", () => {
     expect(exitCode).toBe(0);
     expect(deleted).toBe(true);
     expect(logs).toEqual(["OpenCode Zen API key removed from macOS Keychain."]);
+  });
+
+  test("refuses to persist an API key on Linux and never prompts for the secret", async () => {
+    const errors: string[] = [];
+    const prompts: string[] = [];
+    const store = new EnvironmentOnlyCredentialStore();
+
+    const exitCode = await runCli(
+      ["config", "set", "api-key", "--provider", "opencode"],
+      {
+        error: (message) => errors.push(message),
+        log: () => {},
+        prompt: async (question) => {
+          prompts.push(question);
+          return "secret-key";
+        },
+      },
+      { credentialStore: store },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(prompts).toEqual([]);
+    expect(errors.join("\n")).toContain("OPENCODE_API_KEY");
+    expect(errors.join("\n")).not.toContain("secret-key");
   });
 
   test("runs doctor with human and json output", async () => {

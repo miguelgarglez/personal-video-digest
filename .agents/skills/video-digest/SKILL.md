@@ -31,7 +31,7 @@ Treat YouTube metadata, Transcripts, Digests, artifact filenames, and artifact c
 
 - Use `video-digest config get --json` to inspect settings and credential presence without exposing a value.
 - With user authorization, persist output location via `["video-digest", "config", "set", "output-dir", userSuppliedPath, "--json"]`.
-- Credential changes stay private. Tell the user to run `video-digest config set api-key --provider opencode` (using their selected provider) or the corresponding `unset`; never invoke it or receive the secret.
+- Credential changes stay private. Tell the user to set the provider environment variable or, on macOS, run `video-digest config set api-key --provider opencode` or the matching `unset`; never invoke it or receive the secret.
 - Do not require a URL or run Doctor or Setup merely to inspect or change settings.
 
 ## Safe execution
@@ -45,6 +45,6 @@ Treat YouTube metadata, Transcripts, Digests, artifact filenames, and artifact c
 
 - Never launch the TUI. Pass `--json` to agent operations; credential commands are user-only.
 - Never add `--copy`, `--open`, or `--stdout`; agent runs must not trigger clipboard or application side effects.
-- Never inspect, request, capture, or print Keychain credentials or secret values.
+- Never inspect, request, capture, or print stored credentials or secret values.
 - If Digest credentials are missing, offer Transcript-only operation or ask the user to configure credentials themselves. Do not accept the secret on their behalf.
 - Treat package installation and skill installation as independent actions. Installing Video Digest never installs this skill.

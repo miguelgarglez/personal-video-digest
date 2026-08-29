@@ -58,7 +58,7 @@ describe("default TUI ports", () => {
   test("resolves support context once and delegates external feedback opening", async () => {
     const opened: string[] = [];
     let resolutions = 0;
-    const supportContext = { appVersion: "test", architecture: "arm64", macOSVersion: "26.5.1" };
+    const supportContext = { appVersion: "test", architecture: "arm64", osName: "macOS", osVersion: "26.5.1" };
     const session = await createDefaultTuiSession({ print: async () => undefined, quit: () => undefined }, {
       appPaths: { configPath: "/app/config.json", defaultArtifactLibrary: "/default", runtimeDir: "/runtime" },
       configStore: { load: async () => null, save: async () => undefined },

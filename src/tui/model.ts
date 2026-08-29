@@ -165,7 +165,8 @@ export function initialModel(input: InitialModelInput): Model {
     supportContext: input.supportContext ?? {
       appVersion: "unknown",
       architecture: "unknown",
-      macOSVersion: "unknown",
+      osName: "unknown",
+      osVersion: "unknown",
     },
   };
 }

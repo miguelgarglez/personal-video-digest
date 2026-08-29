@@ -192,7 +192,7 @@ function viewForScreen(model: Model): MutableView {
     case "credential-required":
       const profile = getProviderProfile(model.config.digest.provider);
       return {
-        body: [`Digest creation needs a ${profile.displayName} API key. It is stored in macOS Keychain.`],
+        body: [`Digest creation needs a ${profile.displayName} API key. On macOS it can be stored in Keychain; on Linux set ${profile.credentialEnv}. Secrets are never written to files.`],
         input: { label: `${profile.displayName} API key`, placeholder: "Paste API key", secret: true, value: "" },
         title: `${profile.displayName} credential required`,
       };
@@ -297,7 +297,7 @@ function viewForScreen(model: Model): MutableView {
         ],
         body: [
           `Video Digest ${model.supportContext.appVersion}`,
-          `macOS ${model.supportContext.macOSVersion} · ${model.supportContext.architecture}`,
+          `${model.supportContext.osName} ${model.supportContext.osVersion} · ${model.supportContext.architecture}`,
           "The draft includes only the technical context shown above. Review it before sending.",
           "Video Digest never sends feedback automatically.",
         ],

@@ -67,8 +67,8 @@ const EXPECTED_HELP = [
   "",
   "Options:",
   "  --email-preview  Also write a Markdown email preview under <Artifact Library>/emails/.",
-  "  --copy           Copy clean transcript text after writing artifacts.",
-  "  --open           Open the transcript Markdown after writing artifacts.",
+  "  --copy           Copy clean transcript text after writing artifacts (macOS clipboard; Linux wl-copy or xclip).",
+  "  --open           Open the transcript Markdown after writing artifacts (macOS open; Linux xdg-open).",
   "  --stdout         Emit only clean transcript text to stdout.",
   "  --json           Write one machine-readable JSON object.",
   "  --yes            Confirm setup without an interactive prompt.",
@@ -90,6 +90,7 @@ const EXPECTED_HELP = [
   "",
   "Configuration:",
   "  video-digest config set api-key --provider <provider> stores an isolated key in macOS Keychain.",
+  "  On Linux, set the provider environment variable instead. Secrets are never written to files.",
   "",
 ].join("\n");
 
@@ -353,18 +354,31 @@ async function readExactShimInvocation(
 }
 
 async function validateDoctorShimInvocations(markers: ShimInvocationMarkers): Promise<void> {
-  await readExactShimInvocation(markers.security, {
-    argv: [
-      "find-generic-password",
-      "-a",
-      "provider:opencode:api-key",
-      "-s",
-      "video-digest",
-      "-w",
-    ],
-    command: "security",
-  });
+  if (process.platform === "darwin") {
+    await readExactShimInvocation(markers.security, {
+      argv: [
+        "find-generic-password",
+        "-a",
+        "provider:opencode:api-key",
+        "-s",
+        "video-digest",
+        "-w",
+      ],
+      command: "security",
+    });
+  } else {
+    await readAbsentShimInvocation(markers.security, "security");
+  }
   await readExactShimInvocation(markers.uv, { argv: ["--version"], command: "uv" });
+}
+
+async function readAbsentShimInvocation(marker: string, command: string): Promise<void> {
+  try {
+    await readFile(marker, "utf8");
+  } catch {
+    return;
+  }
+  throw new Error(`doctor invoked the isolated ${command} shim unexpectedly`);
 }
 
 function createSmokeEnvironment(root: string, shimDirectory: string): Record<string, string> {

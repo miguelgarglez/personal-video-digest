@@ -3,7 +3,8 @@
 Supported providers: OpenCode Zen, OpenAI, Anthropic, Google Gemini, and xAI.
 
 Video Digest uses bring-your-own-key credentials. Keys are isolated by provider in
-macOS Keychain and are never stored in `config.json`, metadata, logs, or normal JSON
+macOS Keychain, or supplied through the provider environment variable. Linux does not
+persist secrets. Keys are never stored in `config.json`, metadata, logs, or normal JSON
 output. There is no automatic provider fallback: a run uses exactly the selected
 provider, model, endpoint, and credential.
 
