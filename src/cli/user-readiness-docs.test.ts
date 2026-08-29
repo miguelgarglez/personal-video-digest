@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 describe("user-readiness documentation", () => {
   test("states support before installation and keeps future work non-committal", async () => {
@@ -26,6 +27,20 @@ describe("user-readiness documentation", () => {
     expect(note).toContain("cloud-provider IPs");
     expect(note).toContain("recurring proxy cost");
     expect(note).toContain("## Reevaluation conditions");
+    expect(note).toContain("Remote Fly hosting (retired)");
+  });
+
+  test("does not deploy a remote Fly web host from CI", async () => {
+    const workflows = await readdir(".github/workflows");
+    expect(workflows).not.toContain("fly-deploy.yml");
+
+    for (const name of workflows) {
+      const text = await readFile(join(".github/workflows", name), "utf8");
+      expect(text, name).not.toMatch(/flyctl|FLY_API_TOKEN|fly\.toml/i);
+    }
+
+    const readme = await readFile("README.md", "utf8");
+    expect(readme).not.toMatch(/fly\.io|flyctl|fly\.toml/i);
   });
 
   test("asks for actionable bug reports without soliciting private data", async () => {
