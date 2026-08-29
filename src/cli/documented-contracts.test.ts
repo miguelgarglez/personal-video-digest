@@ -240,6 +240,7 @@ describe("public CLI documentation contracts", () => {
     ]);
 
     expect(compatibilityDocs).toContain("macOS on Apple Silicon (`darwin`/`arm64`)");
+    expect(compatibilityDocs).toContain("Linux x64 (`linux`/`x64`)");
     expect(compatibilityDocs).toContain("Bun");
     expect(compatibilityDocs).toContain("Python 3.12");
     expect(compatibilityDocs).toContain("`uv`");

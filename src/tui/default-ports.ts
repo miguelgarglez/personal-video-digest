@@ -12,7 +12,7 @@ import { resolveAppPaths, type AppPaths } from "../cli/app-paths";
 import { resolveArtifactLibrary } from "../cli/artifact-library";
 import { FileConfigStore, type AppConfig } from "../cli/config-store";
 import {
-  MacOSKeychainCredentialStore,
+  createCredentialStore,
   resolveProviderApiKey,
   type CredentialStore,
 } from "../cli/credentials";
@@ -24,7 +24,7 @@ import {
   resolveUvExecutable,
   type RuntimeReadiness,
 } from "../cli/runtime-manager";
-import { createMacOSSystemActions, type SystemActions } from "../cli/system-actions";
+import { createSystemActions, type SystemActions } from "../cli/system-actions";
 import { ingestVideo, type IngestVideoInput, type IngestVideoResult } from "../ingestion/ingest-video";
 import {
   fetchTranscriptOnly,
@@ -96,12 +96,12 @@ export async function createDefaultTuiSession(
 ): Promise<TuiBootstrapResult> {
   const env = dependencies.env ?? process.env;
   const homeDir = dependencies.homeDir ?? homedir();
-  const appPaths = dependencies.appPaths ?? resolveAppPaths(homeDir);
+  const appPaths = dependencies.appPaths ?? resolveAppPaths(homeDir, { env });
   const configStore = dependencies.configStore ?? new FileConfigStore(appPaths.configPath);
-  const credentialStore = dependencies.credentialStore ?? new MacOSKeychainCredentialStore();
+  const credentialStore = dependencies.credentialStore ?? createCredentialStore();
   const runtime = dependencies.runtimeManager ?? defaultRuntimeManager(appPaths, env);
   const withRecovered = dependencies.withRecoveredLibrary ?? withRecoveredOutputLibrary;
-  const systemActions = dependencies.systemActions ?? createMacOSSystemActions();
+  const systemActions = dependencies.systemActions ?? createSystemActions();
   const transcriptSourceFactory = dependencies.transcriptSourceFactory ?? (() => new PythonYoutubeTranscriptSource());
   const metadataSourceFactory = dependencies.metadataSourceFactory ?? (() => new YouTubeOEmbedMetadataSource());
   let savedConfig = await configStore.load();

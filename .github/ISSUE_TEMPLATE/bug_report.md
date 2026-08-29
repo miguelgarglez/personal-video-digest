@@ -22,5 +22,5 @@ share, or sensitive local paths.
 ## Technical context
 
 - Video Digest version:
-- macOS version:
+- OS:
 - Architecture:

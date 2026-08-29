@@ -794,7 +794,7 @@ describe("event payload snapshots", () => {
 describe("Help & Feedback", () => {
   test("opens from Home with allowlisted context and returns Home", () => {
     const home = readyModel({
-      supportContext: { appVersion: "1.0.0", architecture: "arm64", macOSVersion: "26.5.1" },
+      supportContext: { appVersion: "1.0.0", architecture: "arm64", osName: "macOS", osVersion: "26.5.1" },
     });
 
     const help = update(home, { type: "open-help" }).model;

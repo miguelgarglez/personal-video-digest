@@ -1,8 +1,8 @@
 # Compatibility and versioning
 
-Video Digest is an npm-distributed CLI. Its supported platform
-is macOS on Apple Silicon (`darwin`/`arm64`). macOS on Intel, Linux, and Windows are
-outside the supported compatibility contract.
+Video Digest is an npm-distributed CLI. Its supported platforms
+are macOS on Apple Silicon (`darwin`/`arm64`) and Linux x64 (`linux`/`x64`).
+macOS on Intel and Windows are outside the supported compatibility contract.
 
 See the [JSON contracts](./json-contracts.md) and [Exit codes](./exit-codes.md).
 
@@ -20,11 +20,23 @@ See the [JSON contracts](./json-contracts.md) and [Exit codes](./exit-codes.md).
   synchronize Python dependencies. `doctor` reports missing, obsolete, and ready
   runtime state; `ingest` and `transcript` fail with remediation when setup is not
   ready.
-- The TUI relies on the packaged OpenTUI native renderer for macOS ARM.
+- The TUI relies on the packaged OpenTUI native renderer. That renderer is
+  validated on macOS ARM. A Linux TUI launch failure restores the terminal and
+  points at direct commands; it does not block `--json` workflows.
 
 The supported shell environment must be able to execute `bun`, and setup must be
-able to execute `uv` (or the path supplied through `UV_BIN`). Clipboard, opening,
-and Finder actions use the macOS `pbcopy` and `open` commands.
+able to execute `uv` (or the path supplied through `UV_BIN`). Clipboard and
+opening actions use `pbcopy` and `open` on macOS. On Linux they use `xdg-open`
+and, when present, `wl-copy` or `xclip`. Missing desktop tools fail with the
+existing `copy-failed` / `open-failed` codes and do not affect `--json` mode.
+
+Application configuration and the managed Python runtime use macOS Application
+Support on Darwin and XDG directories on Linux. The default Artifact Library
+remains `~/Documents/Video Digest` on both platforms.
+
+Digest credentials resolve from the provider environment variable, then from
+macOS Keychain on Darwin. Linux does not persist secrets; only the environment
+variable is used. `credential.source` remains `env`, `keychain`, or `missing`.
 
 ## Major-version policy
 

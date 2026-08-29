@@ -1,6 +1,10 @@
 import { getProviderProfile, type DigestProviderId } from "../summarizer/providers";
+import { isDarwin } from "./platform";
+
+export type CredentialPersistence = "keychain" | "none";
 
 export type CredentialStore = {
+  readonly persistence?: CredentialPersistence;
   deleteApiKey(provider: DigestProviderId): Promise<void>;
   getApiKey(provider: DigestProviderId): Promise<string | null>;
   setApiKey(provider: DigestProviderId, value: string): Promise<void>;
@@ -26,7 +30,43 @@ export type SecurityCommandRunner = (args: string[]) => Promise<SecurityCommandR
 
 const KEYCHAIN_SERVICE = "video-digest";
 
+export function createCredentialStore(
+  platform: NodeJS.Platform = process.platform,
+): CredentialStore {
+  return isDarwin(platform)
+    ? new MacOSKeychainCredentialStore()
+    : new EnvironmentOnlyCredentialStore();
+}
+
+export function persistsCredentials(store: CredentialStore): boolean {
+  return store.persistence !== "none";
+}
+
+export function persistedCredentialLabel(store: CredentialStore): string {
+  return store.persistence === "none" ? "the environment" : "macOS Keychain";
+}
+
+export class EnvironmentOnlyCredentialStore implements CredentialStore {
+  readonly persistence = "none" as const;
+
+  async getApiKey(): Promise<string | null> {
+    return null;
+  }
+
+  async setApiKey(provider: DigestProviderId): Promise<void> {
+    const envName = getProviderProfile(provider).credentialEnv;
+    throw new Error(
+      `This platform does not persist API keys. Set ${envName} instead. Video Digest never writes secrets to files.`,
+    );
+  }
+
+  async deleteApiKey(): Promise<void> {
+    // Linux has no persistent secret store; nothing to delete.
+  }
+}
+
 export class MacOSKeychainCredentialStore implements CredentialStore {
+  readonly persistence = "keychain" as const;
   private readonly runSecurity: SecurityCommandRunner;
   private readonly service: string;
 

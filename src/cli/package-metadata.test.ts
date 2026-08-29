@@ -65,8 +65,8 @@ describe("package metadata", () => {
       name: "video-digest",
       description: "Turn YouTube videos into local transcripts and structured digests.",
       license: "MIT",
-      os: ["darwin"],
-      cpu: ["arm64"],
+      os: ["darwin", "linux"],
+      cpu: ["arm64", "x64"],
       bin: { "video-digest": "bin/video-digest" },
       repository: {
         type: "git",

@@ -2,7 +2,7 @@ import { constants } from "node:fs";
 import { access, readFile, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
-import { MacOSKeychainCredentialStore, resolveProviderApiKey, type CredentialStore } from "./credentials";
+import { createCredentialStore, resolveProviderApiKey, type CredentialStore } from "./credentials";
 import type { ResolvedDigestSelection } from "./digest-config";
 import { getProviderProfile } from "../summarizer/providers";
 import { resolveAppPaths } from "./app-paths";
@@ -44,7 +44,7 @@ export type DoctorProbe = {
 };
 
 export async function defaultDoctor(
-  credentialStore: CredentialStore = new MacOSKeychainCredentialStore(),
+  credentialStore: CredentialStore = createCredentialStore(),
   outputDir = resolveAppPaths(homedir()).defaultArtifactLibrary,
   selection: ResolvedDigestSelection = {
     model: { effective: getProviderProfile("opencode").defaultModel, source: "default" },
@@ -53,7 +53,7 @@ export async function defaultDoctor(
   env: Record<string, string | undefined> = process.env,
 ): Promise<DoctorReport> {
   const resources = resolvePackageResources(import.meta.url);
-  const appPaths = resolveAppPaths(homedir());
+  const appPaths = resolveAppPaths(homedir(), { env });
   const lockContents = await readFile(resources.uvLock, "utf8");
   return buildDoctorReport({
     bunVersion: Bun.version,

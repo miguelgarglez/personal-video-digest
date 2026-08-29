@@ -5,13 +5,16 @@ describe("user-readiness documentation", () => {
   test("states support before installation and keeps future work non-committal", async () => {
     const readme = await readFile("README.md", "utf8");
     const support = readme.indexOf("macOS on Apple Silicon");
+    const linux = readme.indexOf("Linux x64");
     const install = readme.indexOf("## Install");
 
     expect(support).toBeGreaterThan(-1);
+    expect(linux).toBeGreaterThan(-1);
     expect(support).toBeLessThan(install);
+    expect(linux).toBeLessThan(install);
     expect(readme).toContain("## Future possibilities");
     expect(readme).toContain("web interface");
-    expect(readme).toContain("Windows and Linux");
+    expect(readme).toContain("Windows");
     expect(readme).not.toContain("proxy");
     expect(readme).not.toContain("cloud-provider IPs");
   });
@@ -33,7 +36,7 @@ describe("user-readiness documentation", () => {
     }
     expect(template).toContain("Do not include API keys");
     expect(template).toContain("Video Digest version");
-    expect(template).toContain("macOS version");
+    expect(template).toContain("OS");
     expect(template).toContain("Architecture");
   });
 });

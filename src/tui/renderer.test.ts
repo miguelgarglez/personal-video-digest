@@ -136,7 +136,7 @@ describe("createTuiRenderer", () => {
     await Promise.resolve();
     expect(events).toEqual([{ type: "open-help" }]);
 
-    const supportContext = { appVersion: "1.0.0", architecture: "arm64", macOSVersion: "26.5.1" };
+    const supportContext = { appVersion: "1.0.0", architecture: "arm64", osName: "macOS", osVersion: "26.5.1" };
     const links = buildFeedbackLinks(supportContext, "failed-workflow");
     model = readyModel({ helpOrigin: "failed-workflow", screen: "help-feedback", supportContext });
     renderer.render(model);

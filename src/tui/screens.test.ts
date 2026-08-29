@@ -301,7 +301,7 @@ describe("buildScreenView", () => {
     const view = buildScreenView(readyModel({
       helpOrigin: "failed-workflow",
       screen: "help-feedback",
-      supportContext: { appVersion: "1.0.0", architecture: "arm64", macOSVersion: "26.5.1" },
+      supportContext: { appVersion: "1.0.0", architecture: "arm64", osName: "macOS", osVersion: "26.5.1" },
     }));
 
     expect(view).toMatchObject({
