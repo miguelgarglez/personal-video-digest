@@ -1,0 +1,4 @@
+{
+  "name": "video-digest",
+  "install": "bash .cursor/install.sh"
+}
